@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Control LED ESP32 por Bluetooth</title>
+    <style>
+        html { font-family: Arial; text-align: center; }
+        h1 { color: #070812; padding: 2vh; }
+        .button {
+            display: inline-block;
+            background-color: #b30000;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            padding: 26px 40px;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .button2 { background-color: #364cf4; }
+    </style>
+</head>
+<body>
+    <h2>Control de LED por Bluetooth</h2>
+    <button onclick="connectBLE()">Conectar al ESP32</button>
+    <button class="button" onclick="sendCommand('ON')">Encender LED</button>
+    <button class="button button2" onclick="sendCommand('OFF')">Apagar LED</button>
+
+    <script>
+        let bleDevice, bleServer, bleService, bleCharacteristic;
+        const SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
+        const CHARACTERISTIC_UUID = "87654321-4321-6789-4321-abcdef987654";
+
+        async function connectBLE() {
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                bleServer = await bleDevice.gatt.connect();
+                bleService = await bleServer.getPrimaryService(SERVICE_UUID);
+                bleCharacteristic = await bleService.getCharacteristic(CHARACTERISTIC_UUID);
+
+                alert("Conectado al ESP32-S3");
+            } catch (error) {
+                console.error("Error al conectar:", error);
+            }
+        }
+
+        async function sendCommand(command) {
+            if (!bleCharacteristic) {
+                alert("No estás conectado al ESP32");
+                return;
+            }
+            let encoder = new TextEncoder();
+            await bleCharacteristic.writeValue(encoder.encode(command));
+            alert("Comando enviado: " + command);
+        }
+    </script>
+</body>
+</html>
