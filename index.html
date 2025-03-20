@@ -3,62 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control LED por Bluetooth</title>
+    <title>Control LED vía BLE</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        button { font-size: 18px; padding: 10px 20px; margin: 10px; cursor: pointer; }
-        #status { margin-top: 20px; font-weight: bold; }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; color: green; }
     </style>
 </head>
 <body>
-
-    <h2>Control del LED vía Bluetooth</h2>
-    <button onclick="connectBLE()">🔗 Conectar</button>
-    <button onclick="sendCommand('LED_ON')">💡 Encender LED</button>
-    <button onclick="sendCommand('LED_OFF')">💡 Apagar LED</button>
-
+    <h1>Control del LED con ESP32 (BLE)</h1>
+    <button id="connect">🔗 Conectar</button>
+    <button id="on" disabled>💡 Encender LED</button>
+    <button id="off" disabled>💡 Apagar LED</button>
     <p id="status">Estado: Desconectado</p>
 
     <script>
-        let bluetoothDevice;
-        let ledCharacteristic;
+        let bleDevice;
+        let bleCharacteristic;
+        const serviceUUID = "BAAD";
+        const characteristicUUID = "F00D";
 
-        async function connectBLE() {
+        async function connectToESP32() {
             try {
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: false,
-                    filters: [{ name: 'ESP32-LED' }],
-                    optionalServices: ['LED_CTRL']
+                console.log("Buscando dispositivos BLE...");
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [serviceUUID]
                 });
 
-                document.getElementById("status").innerText = "Estado: Conectando...";
+                console.log("Conectando a GATT Server...");
+                const server = await bleDevice.gatt.connect();
 
-                const server = await bluetoothDevice.gatt.connect();
-                const service = await server.getPrimaryService('LED_CTRL');
-                ledCharacteristic = await service.getCharacteristic('LED_CMD');
+                console.log("Obteniendo servicio...");
+                const service = await server.getPrimaryService(serviceUUID);
 
-                document.getElementById("status").innerText = "Estado: Conectado ✅";
+                console.log("Obteniendo característica...");
+                bleCharacteristic = await service.getCharacteristic(characteristicUUID);
+
+                document.getElementById("status").textContent = "Estado: Conectado ✅";
+                document.getElementById("on").disabled = false;
+                document.getElementById("off").disabled = false;
+
+                console.log("Conexión exitosa!");
             } catch (error) {
-                document.getElementById("status").innerText = "Error de conexión ❌";
-                console.error(error);
+                console.error("Error al conectar:", error);
+                document.getElementById("status").textContent = "Estado: Error ❌";
             }
         }
 
         async function sendCommand(command) {
-            if (!ledCharacteristic) {
-                alert("Primero conecta al dispositivo Bluetooth.");
+            if (!bleCharacteristic) {
+                alert("No conectado al ESP32");
                 return;
             }
-
             try {
+                console.log("Enviando:", command);
                 const encoder = new TextEncoder();
-                await ledCharacteristic.writeValue(encoder.encode(command));
-                document.getElementById("status").innerText = `Comando enviado: ${command}`;
+                await bleCharacteristic.writeValue(encoder.encode(command));
+                document.getElementById("status").textContent = `Estado: ${command === "LED_ON" ? "LED Encendido 💡" : "LED Apagado 🌑"}`;
             } catch (error) {
                 console.error("Error al enviar comando:", error);
             }
         }
-    </script>
 
+        document.getElementById("connect").addEventListener("click", connectToESP32);
+        document.getElementById("on").addEventListener("click", () => sendCommand("LED_ON"));
+        document.getElementById("off").addEventListener("click", () => sendCommand("LED_OFF"));
+    </script>
 </body>
 </html>
