@@ -1,65 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Control LED ESP32 por Bluetooth</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control LED por Bluetooth</title>
     <style>
-        html { font-family: Arial; text-align: center; }
-        h1 { color: #070812; padding: 2vh; }
-        .button {
-            display: inline-block;
-            background-color: #b30000;
-            border: none;
-            border-radius: 4px;
-            color: white;
-            padding: 26px 40px;
-            font-size: 30px;
-            cursor: pointer;
-            margin: 10px;
-        }
-        .button2 { background-color: #364cf4; }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button { font-size: 18px; padding: 10px 20px; margin: 10px; cursor: pointer; }
+        #status { margin-top: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h2>Control de LED por Bluetooth</h2>
-    <button onclick="connectBLE()">Conectar al ESP32</button>
-    <button class="button" onclick="sendCommand('LED_ON')">Encender LED</button>
-    <button class="button button2" onclick="sendCommand('LED_OFF')">Apagar LED</button>
+
+    <h2>Control del LED vía Bluetooth</h2>
+    <button onclick="connectBLE()">🔗 Conectar</button>
+    <button onclick="sendCommand('LED_ON')">💡 Encender LED</button>
+    <button onclick="sendCommand('LED_OFF')">💡 Apagar LED</button>
+
+    <p id="status">Estado: Desconectado</p>
 
     <script>
-        let bleDevice, bleServer, bleService, bleCharacteristic;
-        const SERVICE_UUID = "BAAD";  // UUID del servicio que contiene la característica de control
-        const CHARACTERISTIC_UUID = "F00D"; // UUID de la característica que recibe los comandos
+        let bluetoothDevice;
+        let ledCharacteristic;
 
         async function connectBLE() {
             try {
-                bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }],
-                    optionalServices: [SERVICE_UUID]
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: false,
+                    filters: [{ name: 'ESP32-LED' }],
+                    optionalServices: ['LED_CTRL']
                 });
 
-                bleServer = await bleDevice.gatt.connect();
-                bleService = await bleServer.getPrimaryService(SERVICE_UUID);
-                bleCharacteristic = await bleService.getCharacteristic(CHARACTERISTIC_UUID);
+                document.getElementById("status").innerText = "Estado: Conectando...";
 
-                alert("Conectado al ESP32");
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService('LED_CTRL');
+                ledCharacteristic = await service.getCharacteristic('LED_CMD');
+
+                document.getElementById("status").innerText = "Estado: Conectado ✅";
             } catch (error) {
-                console.error("Error al conectar:", error);
+                document.getElementById("status").innerText = "Error de conexión ❌";
+                console.error(error);
             }
         }
 
         async function sendCommand(command) {
-            if (!bleCharacteristic) {
-                alert("No estás conectado al ESP32");
+            if (!ledCharacteristic) {
+                alert("Primero conecta al dispositivo Bluetooth.");
                 return;
             }
-            let encoder = new TextEncoder();
+
             try {
-                await bleCharacteristic.writeValue(encoder.encode(command));
-                alert("Comando enviado: " + command);
+                const encoder = new TextEncoder();
+                await ledCharacteristic.writeValue(encoder.encode(command));
+                document.getElementById("status").innerText = `Comando enviado: ${command}`;
             } catch (error) {
                 console.error("Error al enviar comando:", error);
             }
         }
     </script>
+
 </body>
 </html>
