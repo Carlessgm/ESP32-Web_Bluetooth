@@ -14,6 +14,7 @@
             padding: 26px 40px;
             font-size: 30px;
             cursor: pointer;
+            margin: 10px;
         }
         .button2 { background-color: #364cf4; }
     </style>
@@ -21,31 +22,30 @@
 <body>
     <h2>Control de LED por Bluetooth</h2>
     <button onclick="connectBLE()">Conectar al ESP32</button>
-    <button class="button" onclick="sendCommand('ON')">Encender LED</button>
-    <button class="button button2" onclick="sendCommand('OFF')">Apagar LED</button>
+    <button class="button" onclick="sendCommand('LED_ON')">Encender LED</button>
+    <button class="button button2" onclick="sendCommand('LED_OFF')">Apagar LED</button>
 
     <script>
         let bleDevice, bleServer, bleService, bleCharacteristic;
-        const SERVICE_UUID = "12345678-1234-5678-1234-56789abcdef0";
-        const CHARACTERISTIC_UUID = "87654321-4321-6789-4321-abcdef987654";
+        const SERVICE_UUID = "BAAD";  // UUID del servicio que contiene la característica de control
+        const CHARACTERISTIC_UUID = "F00D"; // UUID de la característica que recibe los comandos
 
         async function connectBLE() {
             try {
                 bleDevice = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }], // <-- Solo muestra dispositivos con el servicio correcto
+                    filters: [{ services: [SERVICE_UUID] }],
                     optionalServices: [SERVICE_UUID]
                 });
-        
+
                 bleServer = await bleDevice.gatt.connect();
                 bleService = await bleServer.getPrimaryService(SERVICE_UUID);
                 bleCharacteristic = await bleService.getCharacteristic(CHARACTERISTIC_UUID);
-        
-                alert("Conectado al ESP32-S3");
+
+                alert("Conectado al ESP32");
             } catch (error) {
                 console.error("Error al conectar:", error);
             }
         }
-
 
         async function sendCommand(command) {
             if (!bleCharacteristic) {
@@ -53,8 +53,12 @@
                 return;
             }
             let encoder = new TextEncoder();
-            await bleCharacteristic.writeValue(encoder.encode(command));
-            alert("Comando enviado: " + command);
+            try {
+                await bleCharacteristic.writeValue(encoder.encode(command));
+                alert("Comando enviado: " + command);
+            } catch (error) {
+                console.error("Error al enviar comando:", error);
+            }
         }
     </script>
 </body>
